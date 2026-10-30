@@ -11,3 +11,4 @@ wheels/
 
 # Environment variables
 .env
+service_account_key.json
