@@ -1,7 +1,6 @@
 from openai import OpenAI
 import json
-
-from tools import fetch_calendar_events
+from tools_registry import TOOLS_REGISTRY
 
 MODEL = 'gpt-5-nano'
 
@@ -17,23 +16,7 @@ def run_agent(prompt: str):
     response = client.chat.completions.create(
       model=MODEL,
       messages=messages,
-      tools=[
-        {
-          "type": "function",
-          "function": {
-            "name": "fetch_calendar_events",
-            "description": "Fetch calendar events within a date range",
-            "parameters": {
-              "type": "object",
-              "properties": {
-                "start_date": {"type": "string", "format": "date"},
-                "end_date": {"type": "string", "format": "date"}
-              },
-              "required": ["start_date", "end_date"]
-            }
-          }
-        }
-      ]
+      tools=[tool_config['schema'] for tool_config in TOOLS_REGISTRY.values()]
     )
     
     message = response.choices[0].message
@@ -43,18 +26,24 @@ def run_agent(prompt: str):
       return message.content
 
     for tool_call in message.tool_calls:
-      if tool_call.function.name == "fetch_calendar_events":
-        arguments = json.loads(tool_call.function.arguments)
-        start_date = arguments.get("start_date")
-        end_date = arguments.get("end_date")
+      tool_name = tool_call.function.name
 
-        events = fetch_calendar_events(start_date=start_date, end_date=end_date)
+      if tool_name in TOOLS_REGISTRY:
+        tool_func = TOOLS_REGISTRY[tool_name]['function']
+        arguments = json.loads(tool_call.function.arguments)
+        result = tool_func(**arguments)
+
         messages.append({
           "role": "tool",
-          "id": tool_call.id,
-          "content": json.dumps(events)
+          "tool_call_id": tool_call.id,
+          "content": json.dumps(result)
+        })
+      else:
+        messages.append({
+          "role": "tool",
+          "tool_call_id": tool_call.id,
+          "content": json.dumps({"error": f"Tool '{tool_name}' not found"})
         })
 
   return "Unable to generate a response."
-
 
