@@ -3,6 +3,7 @@ from datetime import date
 from fastapi import FastAPI, Query
 from pydantic import BaseModel, Field, model_validator
 import uvicorn
+from agents import run_agent
 
 load_dotenv()
 
@@ -29,7 +30,7 @@ class DateRange(BaseModel):
 def run_endpoint(date_range: DateRange = Query()):
     start_date = date_range.start_date
     end_date = date_range.end_date
-    return f"Fetch calendar events from {start_date} to {end_date}"
+    return run_agent(f"Fetch calendar events from {start_date} to {end_date}")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
